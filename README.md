@@ -138,6 +138,7 @@ Field mapping customization is done in `config/field_mappings.toml` and hot-relo
 - Operations and troubleshooting: [docs/operations.md](docs/operations.md)
 - Architecture and OCSF mapping: [docs/architecture.md](docs/architecture.md)
 - Wazuh cluster deployment: [docs/cluster.md](docs/cluster.md)
+- Wazuh build from source (ZeroMQ): [docs/wazuh-build-from-source.md](docs/wazuh-build-from-source.md)
 - Production deployment gotchas: [docs/deployment-notes.md](docs/deployment-notes.md)
 - Production server tuning (ClickHouse, ETL): [docs/production-tuning.md](docs/production-tuning.md)
 - Detailed field mapping reference: [FIELD_MAPPINGS.md](FIELD_MAPPINGS.md)
@@ -157,3 +158,13 @@ Now:
 - README gives the essentials quickly
 - Deep details are split into focused docs
 - You can jump directly to the page you need
+
+## Acknowledgements
+
+This project is built on the excellent foundation created by
+[yash22091](https://github.com/yash22091/wazuh-ocsf-etl).
+Thank you for the original work, architecture, and the open-source spirit
+that makes it possible to extend and improve this pipeline.
+Ongoing development here adds ZeroMQ support, production tuning,
+Grafana dashboards, and operational documentation — all standing on
+your shoulders.
