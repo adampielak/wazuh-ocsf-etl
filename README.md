@@ -138,6 +138,8 @@ Field mapping customization is done in `config/field_mappings.toml` and hot-relo
 - Operations and troubleshooting: [docs/operations.md](docs/operations.md)
 - Architecture and OCSF mapping: [docs/architecture.md](docs/architecture.md)
 - Wazuh cluster deployment: [docs/cluster.md](docs/cluster.md)
+- Production deployment gotchas: [docs/deployment-notes.md](docs/deployment-notes.md)
+- Production server tuning (ClickHouse, ETL): [docs/production-tuning.md](docs/production-tuning.md)
 - Detailed field mapping reference: [FIELD_MAPPINGS.md](FIELD_MAPPINGS.md)
 - Legacy full reference (old long README): [docs/reference-full.md](docs/reference-full.md)
 
