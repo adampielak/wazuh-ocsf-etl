@@ -56,23 +56,13 @@ Configuration and field mappings are preserved.
 ## ZeroMQ mode — Wazuh upgrade note
 
 Wazuh binary packages (.deb) do **not** include ZeroMQ support.
-If `INPUT_MODE=zeromq` is in use, Wazuh must be built from source with:
+If `INPUT_MODE=zeromq` is in use, Wazuh must be built from source.
+
+Use the provided script for a fully automated build and install:
 
 ```bash
-cd /root/wazuh-<VERSION>/src
-make deps TARGET=server
-make TARGET=server USE_ZEROMQ=yes
+sudo bash scripts/wazuh-build-from-source.sh [VERSION]
 ```
 
-Before running `install.sh`, create `etc/preloaded-vars.conf`:
-
-```
-USER_LANGUAGE="en"
-USER_NO_STOP="y"
-USER_INSTALL_TYPE="server"
-USER_DIR="/var/ossec"
-USER_UPDATE="y"
-USER_ENABLE_UPDATE_CHECK="n"
-```
-
-Then restore `ossec.conf` from backup after install — `install.sh` may overwrite it.
+Full procedure, version matrix, and troubleshooting:
+[docs/wazuh-build-from-source.md](wazuh-build-from-source.md)
