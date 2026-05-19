@@ -45,10 +45,36 @@ When state file does not exist:
 
 - `SPECIAL_LOCATIONS` for shared table routing (agentless/integration sources)
 - `DATA_TTL_DAYS` for retention TTL (disabled by default)
-- `STORE_RAW_DATA` to keep/drop full raw JSON payload
+- `STORE_RAW_DATA` to keep/drop full raw JSON payload (true = full JSON stored; costs 40–70% extra storage)
 - `OCSF_VALIDATE` to enable/disable schema validation warnings
 - `UNMAPPED_FIELDS_FILE` path for unmapped-field report
 - `RUST_LOG` log verbosity (`info`, `debug`, `trace`)
+
+## Production .env — ZeroMQ mode
+
+When collocated with Wazuh manager (requires ZeroMQ build, see [operations.md](operations.md)):
+
+```dotenv
+INPUT_MODE=zeromq
+ZEROMQ_URI=tcp://localhost:11111
+
+STATE_FILE=state/<hostname>/alerts.pos
+UNMAPPED_FIELDS_FILE=/opt/wazuh-ocsf/state/unmapped_fields.json
+FIELD_MAPPINGS_FILE=/opt/wazuh-ocsf/config/field_mappings.toml
+
+SEEK_TO_END_ON_FIRST_RUN=true
+
+BATCH_SIZE=5000
+FLUSH_INTERVAL_SECS=5
+CHANNEL_CAP=50000
+
+OCSF_VALIDATE=true
+RUST_LOG=info
+STORE_RAW_DATA=true
+
+# Shared tables for agentless/integration sources
+SPECIAL_LOCATIONS=azure_ad,office365,syslog,kubernetes,k8s
+```
 
 ## Field mappings
 
