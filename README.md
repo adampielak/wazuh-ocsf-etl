@@ -83,7 +83,7 @@ Supporting files:
 1. Clone and enter the repo
 
 ```bash
-git clone https://github.com/mranv/wazuh-ocsf-etl.git
+git clone https://github.com/adampielak/wazuh-ocsf-etl.git
 cd wazuh-ocsf-etl
 ```
 
