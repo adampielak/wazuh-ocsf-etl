@@ -3,6 +3,10 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
+// How long to wait for a message before treating the connection as dead.
+// A CLOSE-WAIT socket never returns an error from recv() — timeout forces a reconnect.
+const RECV_TIMEOUT_SECS: u64 = 30;
+
 // ─── ZeroMQ subscriber reader task ───────────────────────────────────────────
 
 pub(crate) async fn zmq_reader_task(uri: String, tx: mpsc::Sender<(u64, String)>) {
@@ -25,13 +29,28 @@ pub(crate) async fn zmq_reader_task(uri: String, tx: mpsc::Sender<(u64, String)>
         info!("ZeroMQ input: subscribed to {uri}");
 
         loop {
-            match socket.recv().await {
-                Ok(msg) => {
+            match tokio::time::timeout(Duration::from_secs(RECV_TIMEOUT_SECS), socket.recv()).await
+            {
+                Err(_elapsed) => {
+                    warn!(
+                        "ZeroMQ recv timeout ({}s, socket may be in CLOSE-WAIT). Reconnecting…",
+                        RECV_TIMEOUT_SECS
+                    );
+                    break;
+                }
+                Ok(Err(e)) => {
+                    warn!("ZeroMQ recv: {e:#}. Reconnecting in 5s…");
+                    break;
+                }
+                Ok(Ok(msg)) => {
+                    // Wazuh sends 2-frame multipart: [topic="ossec.alerts", JSON].
+                    // Take the last frame as the payload; skip topic/prefix frames.
                     let raw = msg
                         .iter()
-                        .filter_map(|frame| std::str::from_utf8(frame.as_ref()).ok())
-                        .collect::<Vec<_>>()
-                        .join("");
+                        .rev()
+                        .find_map(|frame| std::str::from_utf8(frame.as_ref()).ok())
+                        .unwrap_or("")
+                        .to_string();
                     let trimmed = raw.trim().to_string();
                     if trimmed.is_empty() {
                         continue;
@@ -39,10 +58,6 @@ pub(crate) async fn zmq_reader_task(uri: String, tx: mpsc::Sender<(u64, String)>
                     if tx.send((0, trimmed)).await.is_err() {
                         return;
                     }
-                }
-                Err(e) => {
-                    warn!("ZeroMQ recv: {e:#}. Reconnecting in 5s…");
-                    break;
                 }
             }
         }

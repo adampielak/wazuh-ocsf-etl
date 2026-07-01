@@ -384,11 +384,15 @@ async fn main() -> Result<()> {
 
     let custom_mappings: Arc<RwLock<CustomMappings>> = Arc::new(RwLock::new(initial_mappings));
 
+    // Disable clickhouse-rs schema validation — it fetches RowBinaryWithNamesAndTypes
+    // which breaks against ClickHouse 26.x due to changed response format.
+    // The schema is correct (same struct fields as table columns), so RowBinary is safe.
     let client = Client::default()
         .with_url(&cfg.clickhouse_url)
         .with_user(&cfg.clickhouse_user)
         .with_password(&cfg.clickhouse_password)
-        .with_database(&cfg.clickhouse_db);
+        .with_database(&cfg.clickhouse_db)
+        .with_validation(false);
 
     // ── Spawn: config hot-reload watcher ──────────────────────────────────
     tokio::spawn(config_watcher_task(
