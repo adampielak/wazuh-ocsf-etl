@@ -13,20 +13,25 @@
 #    sudo bash wazuh-build-from-source.sh            # builds WAZUH_VERSION below
 #    sudo bash wazuh-build-from-source.sh 4.14.5     # override version
 #
-#  Tested on: Ubuntu 22.04, Ubuntu 24.04 (Debian-family only)
+#  Tested on: Ubuntu 22.04, Ubuntu 24.04, Ubuntu 25.04 (Debian-family only)
+#
+#  NOTE: Ubuntu 25.04 / gcc 15 requires two source patches that this script
+#  applies automatically before the main build (see Step 4a and 4b below).
 #
 #  What this script does:
-#    1. Installs build dependencies
-#    2. Backs up /var/ossec/etc/ossec.conf
-#    3. Downloads the Wazuh source tarball from GitHub
-#    4. Builds with:  make deps TARGET=server
-#                     make TARGET=server USE_ZEROMQ=yes
-#    5. Writes preloaded-vars.conf for unattended install/update
-#    6. Stops wazuh-manager
-#    7. Runs install.sh in update mode
-#    8. Restores ossec.conf from backup
-#    9. Verifies version and ZeroMQ presence in the binary
-#   10. Starts wazuh-manager and prints status
+#    1.  Install build dependencies (gcc, cmake, libzmq3-dev, libczmq-dev, …)
+#    2.  Backup /var/ossec/etc/ossec.conf
+#    3.  Download source tarball from GitHub (v<VERSION>.tar.gz)
+#    4.  make deps TARGET=server
+#    4a. [gcc ≥ 15 only] Patch versionMatcher headers — add #include <cstdint>
+#    4b. [gcc ≥ 15 only] Patch /usr/include/czmq_prelude.h — add #ifdef guards
+#    4c. make TARGET=server USE_ZEROMQ=yes
+#    5.  Write preloaded-vars.conf for unattended install.sh
+#    6.  Unhold wazuh-manager apt package (if held), stop wazuh-manager
+#    7.  Run install.sh in update mode
+#    8.  Restore ossec.conf from backup
+#    9.  Verify installed version and ZeroMQ in binary
+#   10.  Start wazuh-manager, re-apply apt-mark hold, print status
 #
 #  Log: /var/log/wazuh-build-<VERSION>.log
 # ══════════════════════════════════════════════════════════════════════════════
@@ -36,7 +41,7 @@ set -euo pipefail
 # Default: latest Wazuh release verified compatible with wazuh-ocsf-etl.
 # This script is updated with each new compatible Wazuh version.
 # Override on the command line: sudo bash wazuh-build-from-source.sh 4.14.6
-WAZUH_VERSION="${1:-4.14.5}"
+WAZUH_VERSION="${1:-4.14.6}"
 BUILD_DIR="/opt/wazuh-src"
 LOG="/var/log/wazuh-build-${WAZUH_VERSION}.log"
 OSSEC_CONF="/var/ossec/etc/ossec.conf"
@@ -112,6 +117,65 @@ cd "${SRC_DIR}/src"
 info "make deps TARGET=server ..."
 make deps TARGET=server 2>&1 | tee -a "$LOG" | grep -E "^\[|error:|Error" || true
 
+# ── Step 4a: gcc 15 patch — missing #include <cstdint> in versionMatcher headers ──
+GCC_MAJOR=$(gcc -dumpversion 2>/dev/null | cut -d. -f1)
+if [[ "${GCC_MAJOR:-0}" -ge 15 ]]; then
+    step "4a: Apply gcc 15 patch — #include <cstdint> in versionMatcher headers"
+    VMDIR="${SRC_DIR}/src/wazuh_modules/vulnerability_scanner/src/scanOrchestrator/versionMatcher"
+    for f in versionObjectCalVer.hpp versionObjectDpkg.hpp versionObjectMajorMinor.hpp \
+              versionObjectPEP440.hpp versionObjectRpm.hpp versionObjectSemVer.hpp; do
+        if [[ -f "${VMDIR}/${f}" ]] && ! grep -q 'cstdint' "${VMDIR}/${f}"; then
+            sed -i 's/#include <iostream>/#include <cstdint>\n#include <iostream>/' "${VMDIR}/${f}"
+            info "Patched ${f}"
+        fi
+    done
+    ok "versionMatcher headers patched"
+
+    # ── Step 4b: gcc 15 patch — czmq_prelude.h type-size check guards ────────────
+    step "4b: Apply gcc 15 patch — czmq_prelude.h #ifdef guards"
+    CZMQ_PRELUDE="/usr/include/czmq_prelude.h"
+    if [[ -f "${CZMQ_PRELUDE}" ]] && ! grep -q 'ifdef UCHAR_MAX' "${CZMQ_PRELUDE}"; then
+        cp "${CZMQ_PRELUDE}" "${CZMQ_PRELUDE}.bak-wazuh-build"
+        python3 - <<'PYEOF'
+with open('/usr/include/czmq_prelude.h', 'r') as f:
+    c = f.read()
+old = ('#if (UCHAR_MAX != 0xFF)\n'
+       '#   error "Cannot compile: must change definition of \'byte\'."\n'
+       '#endif\n'
+       '#if (USHRT_MAX != 0xFFFFU)\n'
+       '#    error "Cannot compile: must change definition of \'dbyte\'."\n'
+       '#endif\n'
+       '#if (UINT_MAX != 0xFFFFFFFFU)\n'
+       '#    error "Cannot compile: must change definition of \'qbyte\'."\n'
+       '#endif')
+new = ('#ifdef UCHAR_MAX\n'
+       '#if (UCHAR_MAX != 0xFF)\n'
+       '#   error "Cannot compile: must change definition of \'byte\'."\n'
+       '#endif\n'
+       '#endif\n'
+       '#ifdef USHRT_MAX\n'
+       '#if (USHRT_MAX != 0xFFFFU)\n'
+       '#    error "Cannot compile: must change definition of \'dbyte\'."\n'
+       '#endif\n'
+       '#endif\n'
+       '#ifdef UINT_MAX\n'
+       '#if (UINT_MAX != 0xFFFFFFFFU)\n'
+       '#    error "Cannot compile: must change definition of \'qbyte\'."\n'
+       '#endif\n'
+       '#endif')
+if old in c:
+    with open('/usr/include/czmq_prelude.h', 'w') as f:
+        f.write(c.replace(old, new))
+    print('czmq_prelude.h patched')
+else:
+    print('czmq_prelude.h: pattern not found — already patched or version mismatch')
+PYEOF
+        ok "czmq_prelude.h patched (backup: ${CZMQ_PRELUDE}.bak-wazuh-build)"
+    else
+        info "czmq_prelude.h already patched or not present — skipping"
+    fi
+fi
+
 info "make TARGET=server USE_ZEROMQ=yes ..."
 make TARGET=server USE_ZEROMQ=yes 2>&1 | tee -a "$LOG" \
     | grep -E "^\[|Linking|error:|Error 2|undefined reference" || true
@@ -139,8 +203,14 @@ USER_ENABLE_UPDATE_CHECK="n"
 VARS
 ok "preloaded-vars.conf written"
 
-# ── Step 6: Stop Wazuh ─────────────────────────────────────────────────────────
+# ── Step 6: Unhold apt package + stop Wazuh ───────────────────────────────────
 step "6: Stop wazuh-manager"
+# Unhold the apt package so install.sh doesn't conflict with a pinned version.
+# We re-apply the hold at the end.
+if apt-mark showhold 2>/dev/null | grep -q wazuh-manager; then
+    apt-mark unhold wazuh-manager 2>/dev/null | tee -a "$LOG"
+    info "apt hold on wazuh-manager removed (will re-apply after install)"
+fi
 if systemctl is-active --quiet wazuh-manager; then
     systemctl stop wazuh-manager
     ok "wazuh-manager stopped"
@@ -176,11 +246,15 @@ else
     die "ZeroMQ NOT found in installed binary — install may have overwritten with package version"
 fi
 
-# ── Step 10: Start ────────────────────────────────────────────────────────────
+# ── Step 10: Start + re-hold ──────────────────────────────────────────────────
 step "10: Start wazuh-manager"
 systemctl start wazuh-manager
 sleep 5
 systemctl status wazuh-manager --no-pager | head -8 | tee -a "$LOG"
+
+# Re-apply apt hold so a future 'apt upgrade' cannot overwrite the ZeroMQ build.
+apt-mark hold wazuh-manager 2>/dev/null | tee -a "$LOG"
+ok "apt-mark hold wazuh-manager applied — prevents accidental apt upgrade"
 
 # ZeroMQ in runtime logs
 sleep 2

@@ -61,8 +61,11 @@ If `INPUT_MODE=zeromq` is in use, Wazuh must be built from source.
 Use the provided script for a fully automated build and install:
 
 ```bash
-sudo bash scripts/wazuh-build-from-source.sh [VERSION]
+sudo bash scripts/wazuh-build-from-source.sh          # latest tested version
+sudo bash scripts/wazuh-build-from-source.sh 4.14.6   # explicit version
 ```
+
+The script handles dependencies, gcc 15 source patches (Ubuntu 25.04), build, unattended install, `ossec.conf` restore, and `apt-mark hold`.
 
 Full procedure, version matrix, and troubleshooting:
 [docs/wazuh-build-from-source.md](wazuh-build-from-source.md)

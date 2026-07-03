@@ -8,3 +8,21 @@ latest-unmapped_fields.json
 BLOG_MEDIUM.md
 CLIENT_MESSAGE.md
 *.zip
+CLAUDE.local.md
+CLAUDE.md
+docs/wanguard-monitoring.md
+
+# AI / LLM tooling
+.claude/
+.serena/
+.aider*
+.cursor/
+.continue/
+.codeium/
+.copilot/
+.codex/
+.hermes/
+.tabnine/
+.cody/
+Plans/
+*.plan.md

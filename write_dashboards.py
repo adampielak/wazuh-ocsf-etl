@@ -2,7 +2,7 @@
 """Writes both Grafana dashboard JSON files."""
 import json, os
 
-BASE = "/root/rust-ocsf"
+BASE = os.path.dirname(os.path.abspath(__file__))
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 

@@ -117,6 +117,13 @@ journalctl -u wazuh-ocsf-etl -f
 - ClickHouse 22.x+
 - Wazuh manager 4.x with JSON output enabled
 
+**ZeroMQ mode additional requirements:**
+
+- Wazuh **must be built from source** with `USE_ZEROMQ=yes` — official `.deb`/`.rpm` packages do not include ZeroMQ support
+- `libzmq3-dev` and `libczmq-dev` on the Wazuh build host
+- Use `scripts/wazuh-build-from-source.sh` — it handles the full build, patches, and install automatically
+- **Ubuntu 25.04 / gcc 15**: the script automatically applies two source patches required for compilation (see [docs/wazuh-build-from-source.md](docs/wazuh-build-from-source.md#known-build-issues))
+
 ## Configuration basics
 
 Primary runtime config lives in `.env` (commonly `/opt/wazuh-ocsf/.env`).

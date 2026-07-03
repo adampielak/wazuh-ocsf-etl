@@ -193,7 +193,7 @@ $EDITOR .env
 CLICKHOUSE_URL=http://clickhouse.internal:8123
 CLICKHOUSE_DATABASE=wazuh_ocsf
 CLICKHOUSE_USER=wazuh_etl
-CLICKHOUSE_PASSWORD=strongpassword
+CLICKHOUSE_PASSWORD=<your-password>
 ALERTS_FILE=/var/ossec/logs/alerts/alerts.json
 # DATA_TTL_DAYS=180  # Uncomment to enable automatic deletion of old logs
 ```
@@ -1480,7 +1480,7 @@ All instances point to the **same** ClickHouse. Only `STATE_FILE` differs (keeps
 CLICKHOUSE_URL=http://clickhouse.internal:8123
 CLICKHOUSE_DATABASE=wazuh_ocsf
 CLICKHOUSE_USER=wazuh_etl
-CLICKHOUSE_PASSWORD=strongpassword
+CLICKHOUSE_PASSWORD=<your-password>
 ALERTS_FILE=/var/ossec/logs/alerts/alerts.json
 STATE_FILE=/opt/wazuh-ocsf-wazuh-master/state/alerts.pos
 # DATA_TTL_DAYS=180  # Uncomment to enable automatic deletion of old logs
